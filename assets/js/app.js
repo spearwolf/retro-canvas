@@ -3,9 +3,9 @@
 
     var RetroCanvas = root.RetroCanvas = {};
 
-    var styleTransformOrigin = 'transformOrigin'
-      , styleTransform = 'transform'
-      , backingStorePixelRatio
+    var backingStorePixelRatio
+      //, styleTransformOrigin = 'transformOrigin'
+      //, styleTransform = 'transform'
       , getImageData = 'getImageData'
       , putImageData = 'putImageData'
       ;
@@ -27,6 +27,7 @@
             putImageData = 'webkitPutImageDataHD';
         }
 
+        /*
         if ('webkitTransformOrigin' in canvas_.style) {
             styleTransformOrigin = 'webkitTransformOrigin';
         } else if ('mozTransformOrigin' in canvas_.style) {
@@ -42,32 +43,52 @@
         } else if ('msTransform' in canvas_.style) {
             styleTransform = 'msTransform';
         }
+        */
 
         ctx_ = null;
+        canvas_.width = 0;
+        canvas_.height = 0;
         canvas_ = null;
     })();
 
+    var scaleByElementStyle = backingStorePixelRatio == 1 && devicePixelRatio > 1;
 
-    RetroCanvas.create = function(width, height) {
+
+
+    RetroCanvas.Create = function(width, height) {
 
         var domEl = document.createElement('canvas')
           , ctx = domEl.getContext('2d')
           ;
+
+
+        if (typeof ctx.webkitImageSmoothingEnabled === 'boolean')
+            ctx.webkitImageSmoothingEnabled = false;
+        if (typeof ctx.mozImageSmoothingEnabled === 'boolean')
+            ctx.mozImageSmoothingEnabled = false;
+        if (typeof ctx.imageSmoothingEnabled === 'boolean')
+            ctx.imageSmoothingEnabled = false;
+
 
         if (width && height) {
             domEl.width = width;
             domEl.height = height;
         }
 
-        if (backingStorePixelRatio == 1 && devicePixelRatio > 1) {
-            var scale = 1.0 / devicePixelRatio;
-            domEl.style[styleTransformOrigin] = '0px 0px';
-            domEl.style[styleTransform] = 'scale('+scale+','+scale+')';
+        function updateElementStyles() {
+            if (scaleByElementStyle) {
+                var scale = 1.0 / devicePixelRatio;
+                //domEl.style[styleTransformOrigin] = '0px 0px';
+                //domEl.style[styleTransform] = 'scale('+scale+','+scale+')';
+                domEl.style.width = ((domEl.width*scale)|0)+'px';
+                domEl.style.height = ((domEl.height*scale)|0)+'px';
+            }
         }
+        updateElementStyles();
 
         var api = {
 
-            el: function() { return domEl; },
+            domEl: function() { return domEl; },
             ctx: function() { return ctx; },
 
             width: function() { return (domEl.width * backingStorePixelRatio)|0; },
@@ -76,12 +97,13 @@
             resize: function(w, h) {
                 domEl.width = w;
                 domEl.height = h;
+                updateElementStyles();
             },
 
             destroy: function() {
                 api.resize(0, 0);
                 domEl.remove();
-                domEl = api.el = undefined;
+                domEl = api.domEl = undefined;
             }
         };
 
@@ -98,13 +120,16 @@
             };
         };
 
-        api.pixels = function(pixelData) {
+        api.imageData = function(pixelData) {
             if (pixelData) {
                 ctx[putImageData](pixelData, 0, 0);
             } else {
                 return ctx[getImageData](0, 0, api.width(), api.height());
             }
         };
+
+        api.scaledByElementStyle = scaleByElementStyle;
+        api.scaledByBackingStore = backingStorePixelRatio != 1;
 
         return api;
     };
@@ -113,42 +138,43 @@
 
     function pixelCopy(source, target) {
 
-        var sp = source.pixels()
-          , p = target.pixels()
+        var sourcePixel = source.imageData()
+          , pixel = target.imageData()
           , w = target.width()
           , h = target.height()
           , sw = source.width()
-          , sw_ = sw / w
-          , sh = source.height()
-          , sh_ = sh / h
-          , x, y, sx, sy, si, i
+          , swFactor = sw / w
+          , shFactor = source.height() / h
+          , x, y, sx, sy
+          , si, pi
           ;
-
-        console.log(sp, p);
 
         for (y = 0; y < h; y++)
             for (x = 0; x < w; x++) {
-                sx = (sw_ * x)|0;
-                sy = (sh_ * y)|0;
+                sx = (swFactor * x)|0;
+                sy = (shFactor * y)|0;
                 si = ((sy * sw) + sx) << 2; 
-                i = ((y * w) + x) << 2; 
-                p.data[i] = sp.data[si];
-                p.data[i+1] = sp.data[si+1];
-                p.data[i+2] = sp.data[si+2];
-                p.data[i+3] = sp.data[si+3];
+                pi = ((y * w) + x) << 2; 
+
+                pixel.data[pi] = sourcePixel.data[si];
+                pixel.data[pi+1] = sourcePixel.data[si+1];
+                pixel.data[pi+2] = sourcePixel.data[si+2];
+                pixel.data[pi+3] = sourcePixel.data[si+3];
             }
 
-        target.pixels(p);
+        target.imageData(pixel);
     }
 
 
-    RetroCanvas.loadImage = function(src, pixelZoom, onLoad) {
+    RetroCanvas.LoadImage = function(src, pixelZoom, onLoad) {
 
-        var pixelZoom_ = (pixelZoom || 1) * (devicePixelRatio / backingStorePixelRatio);
+        var onLoad_ = arguments[arguments.length-1]
+          , pixelZoom_ = (typeof pixelZoom === 'function' ? 1 : pixelZoom || 1) *
+                                            (devicePixelRatio / backingStorePixelRatio)
+          , target = RetroCanvas.Create()
+          ;
 
-        var target = RetroCanvas.create();
-
-        RetroCanvas.create().loadImage(src, function(origin){
+        RetroCanvas.Create().loadImage(src, function(origin){
 
             var w = origin.width() * pixelZoom_
               , h = origin.height() * pixelZoom_
@@ -156,14 +182,16 @@
 
             target.resize(w, h);
 
-            console.log('pixelZoom_', pixelZoom_);
-            console.log('originImageSize: '+origin.width()+'x'+origin.height(),
-                        'domSize: '+w+'x'+h,
-                        'realPixelSize: '+target.width()+'x'+target.height());
+            target.pixelInfo = {
+                pixelZoom: pixelZoom_,
+                originalImageSize: [origin.width(), origin.height()],
+                domElSize: [w, h],
+                realPixelSize: [target.width(), target.height()]
+            };
 
             pixelCopy(origin, target);
 
-            if ('function' === typeof onLoad) onLoad(target);
+            if ('function' === typeof onLoad_) onLoad_(target);
         });
 
         return target;
@@ -178,19 +206,16 @@
 
 
 jQuery(function($){
-
     console.log('hello RetroCanvas.js!');
 
-    //window.rc = RetroCanvas.create();
-    //$('section').append(rc.el());
-    //console.log('domEl:', rc.el());
-
-    //rc.loadImage('assets/fantasy-tileset.png');
-
-    RetroCanvas.loadImage('assets/fantasy-tileset.png', 2, function(canvas){
+    RetroCanvas.LoadImage('assets/fantasy-tileset.png', 2, function(canvas){
+        window.c = canvas;
         console.log(canvas);
-        $('section').append(canvas.el());
-        console.log('domEl:', canvas.el());
+
+        $('section').append(canvas.domEl());
+
+        console.log('domEl:', canvas.domEl());
+        console.log('pixelInfo:', canvas.pixelInfo);
     });
 });
 
