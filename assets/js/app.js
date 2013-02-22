@@ -5,28 +5,47 @@
 
     var styleTransformOrigin = 'transformOrigin'
       , styleTransform = 'transform'
+      , backingStorePixelRatio
+      , getImageData = 'getImageData'
+      , putImageData = 'putImageData'
       ;
 
 
-    var div = document.createElement('div');
+    (function(){
+        var canvas_ = document.createElement('canvas')
+            ctx_ = canvas_.getContext('2d')
+            ;
 
-    if ('webkitTransformOrigin' in div.style) {
-        styleTransformOrigin = 'webkitTransformOrigin';
-    } else if ('mozTransformOrigin' in div.style) {
-        styleTransformOrigin = 'mozTransformOrigin';
-    } else if ('msTransformOrigin' in div.style) {
-        styleTransformOrigin = 'msTransformOrigin';
-    }
+        backingStorePixelRatio = ctx_.webkitBackingStorePixelRatio
+                                 || ctx_.mozBackingStorePixelRatio
+                                 || ctx_.msBackingStorePixelRatio
+                                 || ctx_.backingStorePixelRatio
+                                 || 1;
 
-    if ('webkitTransform' in div.style) {
-        styleTransform = 'webkitTransform';
-    } else if ('mozTransform' in div.style) {
-        styleTransform = 'mozTransform';
-    } else if ('msTransform' in div.style) {
-        styleTransform = 'msTransform';
-    }
+        if (backingStorePixelRatio != 1) {
+            getImageData = 'webkitGetImageDataHD';
+            putImageData = 'webkitPutImageDataHD';
+        }
 
-    div = null;
+        if ('webkitTransformOrigin' in canvas_.style) {
+            styleTransformOrigin = 'webkitTransformOrigin';
+        } else if ('mozTransformOrigin' in canvas_.style) {
+            styleTransformOrigin = 'mozTransformOrigin';
+        } else if ('msTransformOrigin' in canvas_.style) {
+            styleTransformOrigin = 'msTransformOrigin';
+        }
+
+        if ('webkitTransform' in canvas_.style) {
+            styleTransform = 'webkitTransform';
+        } else if ('mozTransform' in canvas_.style) {
+            styleTransform = 'mozTransform';
+        } else if ('msTransform' in canvas_.style) {
+            styleTransform = 'msTransform';
+        }
+
+        ctx_ = null;
+        canvas_ = null;
+    })();
 
 
     RetroCanvas.create = function(width, height) {
@@ -35,18 +54,19 @@
           , ctx = domEl.getContext('2d')
           ;
 
-        var backingStorePixelRatio = ctx.webkitBackingStorePixelRatio
-                                     || ctx.mozBackingStorePixelRatio
-                                     || ctx.msBackingStorePixelRatio
-                                     || ctx.backingStorePixelRatio
-                                     || 1;
-
         if (width && height) {
             domEl.width = width;
             domEl.height = height;
         }
 
+        if (backingStorePixelRatio == 1 && devicePixelRatio > 1) {
+            var scale = 1.0 / devicePixelRatio;
+            domEl.style[styleTransformOrigin] = '0px 0px';
+            domEl.style[styleTransform] = 'scale('+scale+','+scale+')';
+        }
+
         var api = {
+
             el: function() { return domEl; },
             ctx: function() { return ctx; },
 
@@ -71,18 +91,82 @@
             img.onload = function() {
                 api.resize(img.width / backingStorePixelRatio,
                             img.height / backingStorePixelRatio);
+
                 ctx.drawImage(img, 0, 0, domEl.width, domEl.height);
 
-                if (backingStorePixelRatio == 1 && devicePixelRatio > 1) {
-                    var scale = 1.0 / devicePixelRatio;
-                    domEl.style[styleTransformOrigin] = '0px 0px';
-                    domEl.style[styleTransform] = 'scale('+scale+','+scale+')';
-                }
-                if (typeof onLoad === 'function') onLoad(api, img);
+                if (typeof onLoad === 'function') onLoad(api);
             };
         };
 
+        api.pixels = function(pixelData) {
+            if (pixelData) {
+                ctx[putImageData](pixelData, 0, 0);
+            } else {
+                return ctx[getImageData](0, 0, api.width(), api.height());
+            }
+        };
+
         return api;
+    };
+
+
+
+    function pixelCopy(source, target) {
+
+        var sp = source.pixels()
+          , p = target.pixels()
+          , w = target.width()
+          , h = target.height()
+          , sw = source.width()
+          , sw_ = sw / w
+          , sh = source.height()
+          , sh_ = sh / h
+          , x, y, sx, sy, si, i
+          ;
+
+        console.log(sp, p);
+
+        for (y = 0; y < h; y++)
+            for (x = 0; x < w; x++) {
+                sx = (sw_ * x)|0;
+                sy = (sh_ * y)|0;
+                si = ((sy * sw) + sx) << 2; 
+                i = ((y * w) + x) << 2; 
+                p.data[i] = sp.data[si];
+                p.data[i+1] = sp.data[si+1];
+                p.data[i+2] = sp.data[si+2];
+                p.data[i+3] = sp.data[si+3];
+            }
+
+        target.pixels(p);
+    }
+
+
+    RetroCanvas.loadImage = function(src, pixelZoom, onLoad) {
+
+        var pixelZoom_ = (pixelZoom || 1) * (devicePixelRatio / backingStorePixelRatio);
+
+        var target = RetroCanvas.create();
+
+        RetroCanvas.create().loadImage(src, function(origin){
+
+            var w = origin.width() * pixelZoom_
+              , h = origin.height() * pixelZoom_
+              ;
+
+            target.resize(w, h);
+
+            console.log('pixelZoom_', pixelZoom_);
+            console.log('originImageSize: '+origin.width()+'x'+origin.height(),
+                        'domSize: '+w+'x'+h,
+                        'realPixelSize: '+target.width()+'x'+target.height());
+
+            pixelCopy(origin, target);
+
+            if ('function' === typeof onLoad) onLoad(target);
+        });
+
+        return target;
     };
 
 
@@ -97,11 +181,16 @@ jQuery(function($){
 
     console.log('hello RetroCanvas.js!');
 
-    window.rc = RetroCanvas.create();
-    $('section').append(rc.el());
-    console.log('domEl:', rc.el());
+    //window.rc = RetroCanvas.create();
+    //$('section').append(rc.el());
+    //console.log('domEl:', rc.el());
 
-    rc.loadImage('assets/fantasy-tileset.png', true);
+    //rc.loadImage('assets/fantasy-tileset.png');
 
+    RetroCanvas.loadImage('assets/fantasy-tileset.png', 2, function(canvas){
+        console.log(canvas);
+        $('section').append(canvas.el());
+        console.log('domEl:', canvas.el());
+    });
 });
 
