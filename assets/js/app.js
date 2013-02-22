@@ -183,9 +183,8 @@
             target.resize(w, h);
 
             target.pixelInfo = {
-                pixelZoom: pixelZoom_,
                 originalImageSize: [origin.width(), origin.height()],
-                domElSize: [w, h],
+                domElementSize: [w, h],
                 realPixelSize: [target.width(), target.height()]
             };
 
