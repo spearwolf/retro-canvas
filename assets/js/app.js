@@ -102,7 +102,8 @@
 
             destroy: function() {
                 api.resize(0, 0);
-                domEl.remove();
+                if (typeof domEl.remove === 'function') domEl.remove();
+                ctx = api.ctx = undefined;
                 domEl = api.domEl = undefined;
             }
         };
@@ -189,6 +190,8 @@
             };
 
             pixelCopy(origin, target);
+
+            origin.destroy();
 
             if ('function' === typeof onLoad_) onLoad_(target);
         });
