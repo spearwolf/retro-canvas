@@ -1,9 +1,10 @@
-
+/*globals RetroCanvas:true */
 (function(root){
 
     var RetroCanvas = root.RetroCanvas = {};
 
     var backingStorePixelRatio
+      , devicePixelRatio_ = window.devicePixelRatio || 1
       //, styleTransformOrigin = 'transformOrigin'
       //, styleTransform = 'transform'
       , getImageData = 'getImageData'
@@ -13,16 +14,16 @@
 
     (function(){
         var canvas_ = document.createElement('canvas')
-            ctx_ = canvas_.getContext('2d')
-            ;
+          , ctx_ = canvas_.getContext('2d')
+          ;
 
-        backingStorePixelRatio = ctx_.webkitBackingStorePixelRatio
-                                 || ctx_.mozBackingStorePixelRatio
-                                 || ctx_.msBackingStorePixelRatio
-                                 || ctx_.backingStorePixelRatio
-                                 || 1;
+        backingStorePixelRatio = ctx_.webkitBackingStorePixelRatio ||
+                                 ctx_.mozBackingStorePixelRatio ||
+                                 ctx_.msBackingStorePixelRatio ||
+                                 ctx_.backingStorePixelRatio ||
+                                 1;
 
-        if (backingStorePixelRatio != 1) {
+        if (backingStorePixelRatio !== 1) {
             getImageData = 'webkitGetImageDataHD';
             putImageData = 'webkitPutImageDataHD';
         }
@@ -51,7 +52,7 @@
         canvas_ = null;
     })();
 
-    var scaleByElementStyle = backingStorePixelRatio == 1 && devicePixelRatio > 1;
+    var scaleByElementStyle = backingStorePixelRatio === 1 && devicePixelRatio_ > 1;
 
 
 
@@ -77,13 +78,14 @@
 
         function updateElementStyles() {
             if (scaleByElementStyle) {
-                var scale = 1.0 / devicePixelRatio;
+                var scale = 1.0 / devicePixelRatio_;
                 //domEl.style[styleTransformOrigin] = '0px 0px';
                 //domEl.style[styleTransform] = 'scale('+scale+','+scale+')';
                 domEl.style.width = ((domEl.width*scale)|0)+'px';
                 domEl.style.height = ((domEl.height*scale)|0)+'px';
             }
         }
+
         updateElementStyles();
 
         var api = {
@@ -130,7 +132,7 @@
         };
 
         api.scaledByElementStyle = scaleByElementStyle;
-        api.scaledByBackingStore = backingStorePixelRatio != 1;
+        api.scaledByBackingStore = backingStorePixelRatio !== 1;
 
         return api;
     };
@@ -154,8 +156,8 @@
             for (x = 0; x < w; x++) {
                 sx = (swFactor * x)|0;
                 sy = (shFactor * y)|0;
-                si = ((sy * sw) + sx) << 2; 
-                pi = ((y * w) + x) << 2; 
+                si = ((sy * sw) + sx) << 2;
+                pi = ((y * w) + x) << 2;
 
                 pixel.data[pi] = sourcePixel.data[si];
                 pixel.data[pi+1] = sourcePixel.data[si+1];
@@ -171,7 +173,7 @@
 
         var onLoad_ = arguments[arguments.length-1]
           , pixelZoom_ = (typeof pixelZoom === 'function' ? 1 : pixelZoom || 1) *
-                                            (devicePixelRatio / backingStorePixelRatio)
+                                            (devicePixelRatio_ / backingStorePixelRatio)
           , target = RetroCanvas.Create()
           ;
 
@@ -210,7 +212,10 @@
 jQuery(function($){
     console.log('hello RetroCanvas.js!');
 
-    RetroCanvas.LoadImage('assets/fantasy-tileset.png', 2, function(canvas){
+    //var imgUrl = 'assets/fantasy-tileset.png';
+    var imgUrl = 'assets/tileset1.png';
+
+    RetroCanvas.LoadImage(imgUrl, 4, function(canvas){
         window.c = canvas;
         console.log(canvas);
 
