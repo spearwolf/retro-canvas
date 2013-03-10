@@ -54,6 +54,7 @@
 
     var scaleByElementStyle = backingStorePixelRatio === 1 && devicePixelRatio_ > 1;
 
+    RetroCanvas.isRetina = backingStorePixelRatio !== 1 || devicePixelRatio_ !== 1;
 
 
     RetroCanvas.Create = function(width, height) {
@@ -246,6 +247,8 @@ jQuery(function($){
         console.log('pixelInfo:', canvas.pixelInfo);
     });
 
-    RetroCanvas.ReplaceImage($('#originalImage'), 1);
+    if (RetroCanvas.isRetina) {
+        RetroCanvas.ReplaceImage($('#originalImage'), 1);
+    }
 });
 
