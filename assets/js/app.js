@@ -207,10 +207,20 @@
     };
 
 
-    RetroCanvas.ReplaceImage = function(imgElement, pixelZoom) {
+    function replaceImage(imgElement, pixelZoom) {
         RetroCanvas.LoadImage(imgElement, pixelZoom, function(canvas){
             imgElement.parentNode.replaceChild(canvas.domEl(), imgElement);
         });
+    }
+
+    RetroCanvas.ReplaceImage = function(imgElement, pixelZoom) {
+        if (imgElement.jquery) {
+            imgElement.each(function(){
+                replaceImage(this, pixelZoom);
+            });
+        } else {
+            replaceImage(imgElement, pixelZoom);
+        }
     };
 
 
@@ -236,6 +246,6 @@ jQuery(function($){
         console.log('pixelInfo:', canvas.pixelInfo);
     });
 
-    RetroCanvas.ReplaceImage($('#originalImage')[0], 1);
+    RetroCanvas.ReplaceImage($('#originalImage'), 1);
 });
 
