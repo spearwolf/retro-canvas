@@ -111,8 +111,13 @@
         };
 
         api.loadImage = function(src, onLoad) {
-            var img = new Image();
-            img.src = src;
+            var img;
+            if (src instanceof Image || src instanceof HTMLImageElement) {
+                img = src;
+            } else {
+                img = new Image();
+                img.src = src;
+            }
             img.onload = function() {
                 api.resize(img.width / backingStorePixelRatio,
                             img.height / backingStorePixelRatio);
@@ -202,6 +207,13 @@
     };
 
 
+    RetroCanvas.ReplaceImage = function(imgElement, pixelZoom) {
+        RetroCanvas.LoadImage(imgElement, pixelZoom, function(canvas){
+            imgElement.parentNode.replaceChild(canvas.domEl(), imgElement);
+        });
+    };
+
+
 })(this);
 
 
@@ -212,10 +224,9 @@
 jQuery(function($){
     console.log('hello RetroCanvas.js!');
 
-    //var imgUrl = 'assets/fantasy-tileset.png';
     var imgUrl = 'assets/tileset1.png';
 
-    RetroCanvas.LoadImage(imgUrl, 4, function(canvas){
+    RetroCanvas.LoadImage(imgUrl, 3, function(canvas){
         window.c = canvas;
         console.log(canvas);
 
@@ -224,5 +235,7 @@ jQuery(function($){
         console.log('domEl:', canvas.domEl());
         console.log('pixelInfo:', canvas.pixelInfo);
     });
+
+    RetroCanvas.ReplaceImage($('#originalImage')[0], 1);
 });
 
