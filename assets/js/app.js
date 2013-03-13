@@ -72,11 +72,6 @@
             ctx.imageSmoothingEnabled = false;
 
 
-        if (width && height) {
-            domEl.width = width;
-            domEl.height = height;
-        }
-
         function updateElementStyles() {
             if (scaleByElementStyle) {
                 var scale = 1.0 / devicePixelRatio_;
@@ -87,7 +82,14 @@
             }
         }
 
-        updateElementStyles();
+        function resize(w, h) {
+            domEl.width = w / backingStorePixelRatio;
+            domEl.height = h / backingStorePixelRatio;
+            updateElementStyles();
+        }
+
+        if (typeof width === 'number' && typeof height === 'number')
+            resize(width, height);
 
         var api = {
 
@@ -97,11 +99,7 @@
             width: function() { return (domEl.width * backingStorePixelRatio)|0; },
             height: function() { return (domEl.height * backingStorePixelRatio)|0; },
 
-            resize: function(w, h) {
-                domEl.width = w;
-                domEl.height = h;
-                updateElementStyles();
-            },
+            resize: resize,
 
             destroy: function() {
                 api.resize(0, 0);
@@ -120,8 +118,7 @@
                 img.src = src;
             }
             img.onload = function() {
-                api.resize(img.width / backingStorePixelRatio,
-                            img.height / backingStorePixelRatio);
+                api.resize(img.width, img.height);
 
                 ctx.drawImage(img, 0, 0, domEl.width, domEl.height);
 
@@ -189,7 +186,7 @@
               , h = origin.height() * pixelZoom_
               ;
 
-            target.resize(w, h);
+            target.resize(w * backingStorePixelRatio, h * backingStorePixelRatio);
 
             target.pixelInfo = {
                 originalImageSize: [origin.width(), origin.height()],

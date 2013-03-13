@@ -1,3 +1,4 @@
+/*globals TMX:true */
 (function(root){
 
     var TMX = root.TMX = {
@@ -11,11 +12,8 @@
             width: tmxJsonData.width,
             height: tmxJsonData.height,
             tileWidth: tmxJsonData.tilewidth,
-            tileHeight: tmxJsonData.tileHeight
+            tileHeight: tmxJsonData.tileheight
         };
-
-
-
 
         return api;
     };
@@ -26,5 +24,12 @@
 
 jQuery(function($){
     console.log('hello tmx.js!');
+
+    $.getJSON('assets/dungeon0.json', function(tmx) {
+
+        window.tmxMap = TMX.Map.Create(tmx);
+        console.log(window.tmxMap);
+
+    });
 });
 
