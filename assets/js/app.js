@@ -1,5 +1,6 @@
 /*globals RetroCanvas:true */
 (function(root){
+    "use strict";
 
     var RetroCanvas = root.RetroCanvas = {};
 
@@ -142,7 +143,7 @@
 
 
 
-    function pixelCopy(source, target) {
+    function pixelCopy(source, target, scanline) {
 
         var sourcePixel = source.imageData()
           , pixel = target.imageData()
@@ -162,17 +163,24 @@
                 si = ((sy * sw) + sx) << 2;
                 pi = ((y * w) + x) << 2;
 
-                pixel.data[pi] = sourcePixel.data[si];
-                pixel.data[pi+1] = sourcePixel.data[si+1];
-                pixel.data[pi+2] = sourcePixel.data[si+2];
-                pixel.data[pi+3] = sourcePixel.data[si+3];
+                if (scanline && y % 4 === 3) {
+                    pixel.data[pi] = sourcePixel.data[si] >> 1;
+                    pixel.data[pi+1] = sourcePixel.data[si+1] >> 1;
+                    pixel.data[pi+2] = sourcePixel.data[si+2] >> 1;
+                    pixel.data[pi+3] = sourcePixel.data[si+3];
+                } else {
+                    pixel.data[pi] = sourcePixel.data[si];
+                    pixel.data[pi+1] = sourcePixel.data[si+1];
+                    pixel.data[pi+2] = sourcePixel.data[si+2];
+                    pixel.data[pi+3] = sourcePixel.data[si+3];
+                }
             }
 
         target.imageData(pixel);
     }
 
 
-    RetroCanvas.LoadImage = function(src, pixelZoom, onLoad) {
+    RetroCanvas.LoadImage = function(src, pixelZoom, scanline, onLoad) {
 
         var onLoad_ = arguments[arguments.length-1]
           , pixelZoom_ = (typeof pixelZoom === 'function' ? 1 : pixelZoom || 1) *
@@ -194,7 +202,7 @@
                 realPixelSize: [target.width(), target.height()]
             };
 
-            pixelCopy(origin, target);
+            pixelCopy(origin, target, scanline === true);
 
             origin.destroy();
 
@@ -222,6 +230,47 @@
     };
 
 
+
+
+    // =======================================================================
+    // PixelBuffer
+    // =======================================================================
+
+    RetroCanvas.PixelBuffer = {};
+
+    RetroCanvas.PixelBuffer.Create = function(width, height) {
+
+        var pixels = new Array(width * height)
+          , api = {
+
+            getWidth: function() { return width; },
+            getHeight: function() { return height; },
+
+            getPixel: function(x, y) {
+                return pixels[y * width + x];
+            },
+
+            setPixel: function(x, y, val) {
+                pixels[y * width + x] = val;
+                return val;
+            },
+
+            fillRect: function(x0, y0, x1, y1, val) {
+                var x, y;
+                for (y = y0; y < y1; y++) {
+                    for (x = x0; x < x1; x++) {
+                        pixels[y * width + x] = val;
+                    }
+                }
+            }
+        };
+
+        api.fillRect(0, 0, width, height, 0);
+
+        return api;
+    };
+
+
 })(this);
 
 
@@ -232,16 +281,35 @@
 jQuery(function($){
     console.log('hello RetroCanvas.js!');
 
-    var imgUrl = 'assets/tileset1.png';
+    var $log = $('#log');
+    //var imgUrl = 'assets/tileset1.png';
+    var imgUrl = 'assets/stone-level0.png';
 
-    RetroCanvas.LoadImage(imgUrl, 3, function(canvas){
+    function log(msg) { $log.append(msg + '<br>'); }
+
+
+    RetroCanvas.LoadImage(imgUrl, 2, function(canvas){
+        $('section').append(canvas.domEl());
+    });
+
+    RetroCanvas.LoadImage(imgUrl, 3, true, function(canvas){
         window.c = canvas;
         console.log(canvas);
 
         $('section').append(canvas.domEl());
 
         console.log('domEl:', canvas.domEl());
-        console.log('pixelInfo:', canvas.pixelInfo);
+
+        var pixelInfo = canvas.pixelInfo;
+        console.log('pixelInfo:', pixelInfo);
+
+        log('domElementSize: '+pixelInfo.domElementSize[0]+'x'+pixelInfo.domElementSize[1]);
+        log('originalImageSize: '+pixelInfo.originalImageSize[0]+'x'+pixelInfo.originalImageSize[1]);
+        log('realPixelSize: '+pixelInfo.realPixelSize[0]+'x'+pixelInfo.realPixelSize[1]);
+        log('isRetina: '+(RetroCanvas.isRetina ? 'yes' : 'no'));
+        log('scaledByElementStyle: '+(canvas.scaledByElementStyle ? 'yes' : 'no'));
+        log('scaledByBackingStore: '+(canvas.scaledByBackingStore ? 'yes' : 'no'));
+
     });
 
     if (RetroCanvas.isRetina) {
