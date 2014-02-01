@@ -24,6 +24,8 @@
                                  ctx_.backingStorePixelRatio ||
                                  1;
 
+        console.log('backingStorePixelRatio=', backingStorePixelRatio, 'devicePixelRatio=', devicePixelRatio_);
+
         if (backingStorePixelRatio !== 1) {
             getImageData = 'webkitGetImageDataHD';
             putImageData = 'webkitPutImageDataHD';
@@ -197,8 +199,9 @@
             target.resize(w * backingStorePixelRatio, h * backingStorePixelRatio);
 
             target.pixelInfo = {
+                viewSize: [(pixelZoom_*origin.width()/devicePixelRatio_)|0, (pixelZoom_*origin.height()/devicePixelRatio_)|0],
                 originalImageSize: [origin.width(), origin.height()],
-                domElementSize: [w, h],
+                canvasSize: [w, h],
                 realPixelSize: [target.width(), target.height()]
             };
 
@@ -301,9 +304,10 @@ jQuery(function($){
         console.log('domEl:', canvas.domEl());
 
         var pixelInfo = canvas.pixelInfo;
-        console.log('pixelInfo:', pixelInfo);
+        //console.log('pixelInfo:', pixelInfo);
 
-        log('domElementSize: '+pixelInfo.domElementSize[0]+'x'+pixelInfo.domElementSize[1]);
+        log('viewSize: '+pixelInfo.viewSize[0]+'x'+pixelInfo.viewSize[1]);
+        log('canvasSize: '+pixelInfo.canvasSize[0]+'x'+pixelInfo.canvasSize[1]);
         log('originalImageSize: '+pixelInfo.originalImageSize[0]+'x'+pixelInfo.originalImageSize[1]);
         log('realPixelSize: '+pixelInfo.realPixelSize[0]+'x'+pixelInfo.realPixelSize[1]);
         log('isRetina: '+(RetroCanvas.isRetina ? 'yes' : 'no'));
